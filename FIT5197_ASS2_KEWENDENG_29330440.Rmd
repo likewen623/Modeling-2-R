@@ -1,0 +1,434 @@
+---
+title: "FIT5197 2018 S1 Assignment2"
+author: "KEWEN DENG, 29330440"
+date: "18 May 2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+data.path = 'D:/Desktop/FIT5197-ASS2/A2_data'
+knitr::opts_chunk$set(echo = TRUE, root.dir = data.path)
+knitr::opts_knit$set(root.dir = data.path)
+```
+
+## Task A: Linear Regression
+```{r}
+# initialization
+rawdata = read.csv('auto_mpg_train.csv')
+testdata = read.csv('auto_mpg_test.csv')
+modifieddata = read.csv('auto_mpg_train.modified.csv')
+```
+
+### A.1
+After examine the given dataset, I find "horsepower" is the only variable contains missing values listed as "?". The observations with "?" as listed:
+```{r}
+# show lines with '?' in horsepower
+replace_rawdata = rawdata[rawdata$horsepower == '?',]
+print(replace_rawdata)
+```
+
+According to the explaination and Data Set Information, "horsepower" is a continuous variable. Thus, I replaced all the "?" with average value calculated, which is 105.3040936.
+
+### A.2
+Pair plots mpg vs. the other bariables are as following:
+```{r}
+# initialization
+rawdata = modifieddata
+# pair plots
+par(mfrow=c(2,2)) 
+plot(rawdata$mpg, rawdata$cylinders,
+     xlab = 'mpg',
+     ylab = 'cylinders')
+plot(rawdata$mpg, rawdata$displacement,
+     xlab = 'mpg',
+     ylab = 'displacement')
+plot(rawdata$mpg, rawdata$horsepower,
+     xlab = 'mpg',
+     ylab = 'horsepower')
+plot(rawdata$mpg, rawdata$weight,
+     xlab = 'mpg',
+     ylab = 'weight')
+par(mfrow=c(2,2))
+plot(rawdata$mpg, rawdata$acceleration,
+     xlab = 'mpg',
+     ylab = 'acceleration')
+plot(rawdata$mpg, rawdata$model.year,
+     xlab = 'mpg',
+     ylab = 'model.year')
+plot(rawdata$mpg, rawdata$origin,
+     xlab = 'mpg',
+     ylab = 'origin')
+plot(rawdata$mpg, rawdata$car.name,
+     xlab = 'mpg',
+     ylab = 'car.name')
+```
+
+### A.3
+Based on the pair plots, it is clear that displacement, weight, horsepower and acceleration are more likely to be used in a linear regression model to predict mpg.\begin{align*}
+mpg &= {\beta_0} + {\beta_1}displacement + {\beta_2}weight + {\beta_3}horsepower + {\beta_4}acceleration \\
+\end{align*}
+
+### A.4
+Then I used lm() routine in R and print the summary of the model to get the R diagnostics. 
+```{r}
+model <- lm(formula = mpg ~ displacement + weight + horsepower + acceleration, data = rawdata)
+summary(model)
+```
+Based on our multiple variables linear regression model, we need to use Adjusted R-squared to represent $R^2$ value according to the number of modeled variables because as the number of variable increases the $R^2$ also grows regardless of the model being improved or not. Generally speaking, $R^2$ evaluated the goodness of the fit which the higher is the better. The value shows the amount of variability in the estimated response variable that is explained by the model. In our result, almost 70.34% of the cause for a mpg can be explained by displacement, weight, horsepower and acceleration, then the model is appropriate.
+
+The t-value measures the size of the difference relative to the variation in the data. These values are not informative per se, unless we use them to calculate other statistics. In our result, the t-value of intercept, displacement, weight, horsepower and acceleration are 17.768, -0.130, -6.482, -2.996 and 0.074.
+
+The standard error comes from the estimated coefficients which measures their variablility. Obviously, the lower the error, the better the fit. In our result, the standard error of intercept, displacement, weight, horsepower and acceleration are 2.5983227, 0.0072054, 0.0008810, 0.0171113 and 0.1313547.
+
+The p-value is calculated by standard error and t_value. As a rule of thumb, the lesser the p-value, the more descriptive the predictor variable is. Also, we can interpret the p-values as the probability the variable is irrelevant. In our result, the p-value of intercept, displacement, weight, horsepower and acceleration are less than 2$e^{-16}$, 0.89667, 3.15$e^{-10}$, 0.00294 and 0.94126.
+
+Consequently, weight and horsepower are significant in predictors. Also, the standard error and t-value of weight are lowest, so weight should be the most influential predictor.
+
+### A.5
+The MSE of the test data set is:
+```{r}
+# initialization
+library(Metrics)
+
+# calculate MSE of test data set
+testmodel <- predict(model, newdata = testdata)
+mse.result <- mse(testdata$mpg, testmodel)
+print(mse.result)
+```
+
+### A.6
+In order to select the best linear regression model for this question, Backwards selection with step() routine has been chosen. 
+First, start with the full model.
+```{r}
+model.plus <- lm(formula = mpg ~ cylinders + displacement + horsepower + weight + acceleration + model.year + origin, data = rawdata)
+summary(model.plus)
+```
+Second, find the predictor that reduces info criterion by most and end with no predictor improves model.
+```{r}
+step <- step(model.plus)
+summary(step)
+```
+Third, remove this predictor from the model. In this case, the original model are the best fitting model. Thus, no predictor has been removed.
+```{r}
+drop1(step)
+summary(step)
+```
+Also, the AIC and BIC of the model can be calculated:
+```{r}
+cat(' AIC = ', AIC(step), '\n',
+    'BIC = ', BIC(step), '\n',
+    'The differences is: ', abs(AIC(step) - BIC(step)), '\n')
+```
+Thus, the differences is greater than 3, which means considered significant.
+Consequently, except 'displacement', 'weight', 'horsepower' and 'acceleration' 4 predictors, 'cylinders', 'model.year' and 'origin' have been added to the model, which comes out 7 predictors in total.
+The new MSE of the test data set is :
+```{r}
+# initialization
+library(Metrics)
+
+# calculate new MSE of test data set
+testmodel <- predict(step, newdata = testdata)
+mse(testdata$mpg, testmodel)
+```
+
+## Task B: Logistic Regression
+```{r}
+# initialization
+b.rawdata <- read.csv('adult_income_train.csv')
+```
+### B.1
+After examine the given dataset, I find "workclass", "occupation" and "native_country" are the variables which contain "?". According to the explaination and Data Set Information, all the 3 variables are multi-valued discrete, which means we can not simply insert a value into those missing places. 
+Also, it is acceptable for us to delete lines contains missing value when the size are small. Thus, it is necessary to have a look at the percentage of the missing values:
+```{r}
+replace_brawdata = b.rawdata[b.rawdata$workclass == '?'|b.rawdata$occupation == '?'|b.rawdata$native_country == '?',]
+cat('The percentage of missing values : ', (nrow(replace_brawdata)/nrow(b.rawdata))*100, '%')
+```
+The percentage of missing values are 8.256923%, more than 5%, which means the size are too large and we can not delete those lines.
+According to the "missing informative" method, I decided not to replace the missing values and leave these as separate categorical values.
+
+### B.2
+With all variables and the given model, the summary is :
+```{r}
+b.model <- glm(income~., family = binomial, data = b.rawdata)
+summary(b.model)
+```
+
+With the combination of standard error and z-value, if the standard error is low enough and the z-value is extreme enough, the predictor is effective.
+Based on the summary, total effective predictors are age, fnlwgt, gender, capital gain, capital loss and hours per week.
+Also the effective predictors of workclass, education, occupation, relationship, marital_status, race and native_country are 0.625, 0.666, 0.714, 0.8, 0.5, 0.75 and 0.220.
+The effective predictors of native_country is relatively low, which means the native_country may not be an appropriate predictor.
+Unfortunately, all the stastical summary of educational_num are NA, which means educational_num is not an appropriate predictor.
+According to the p-value in the summary, we could safely draw the conclusion that age, workclass, fnlwgt, educaion, marital_status, occupation, relationship, race, capital_gain, capital_loss, hour_per_week are significant in preditors.
+
+### B.3
+The confusion matrix on the test set is :
+```{r}
+b.testdata <- read.csv('adult_income_test.csv')
+b.testdata$predict <- predict(b.model, b.testdata, type = 'response')
+b.testdata$Y_predict[b.testdata$predict>=0.5] <- 1
+b.testdata$Y_predict[b.testdata$predict<0.5] <- 0
+
+b.testdata$Y[b.testdata$income == '>50K'] <- 1
+b.testdata$Y[b.testdata$income == '<=50K'] <- 0
+
+confusion.matrix <- as.matrix(table('Actual'=b.testdata$Y, 'Prediction'=b.testdata$Y_predict))
+print(confusion.matrix)
+```
+As the confusion matrix shows, 3507 of income less than 50K(i.e. type=0) and 736 of income greater than 50K(i.e. type=1) are predicted correctly. Here, 3507 and 736 represent True Negative and True Positive values, respectively.
+The confusion matrix also indicates that 264 of income less than 50K are predicted as the greater than 50K, and 493 greater than 50K are classified as less than 50K.
+Thus, the accuracy has been calculated as :
+```{r}
+N <- nrow(b.testdata)				# number of observations
+diag <- diag(confusion.matrix)	# TN and TP
+Accuracy <- sum(diag)/N			# accuracy = (TP + TN)/N
+round(Accuracy*100,2)
+```
+Also, the precision and recall have been calculated as :
+```{r}
+rowsums = apply(confusion.matrix, 1, sum)	# number of observations per class
+colsums = apply(confusion.matrix, 2, sum)	# number of predictions per class
+Precision = diag / colsums
+Recall = diag / rowsums
+round(data.frame(Precision, Recall)*100,5) 
+```
+
+### B.4
+Based on the conclusioni on B.2, I decided to delete education_num and native_country from the predictors. Thus :
+```{r}
+b.rawdata <- read.csv('adult_income_train.exact1.csv')
+b.testdata <- read.csv('adult_income_test.exact1.csv')
+
+b.rawdata <- subset(b.rawdata, select=c("age", "workclass", "fnlwgt", "education","marital_status","occupation",
+                                       "relationship", "race", "gender", "capital_gain",
+                                       "capital_loss", "hours_per_week", "income"))
+b.testdata <- subset(b.testdata, select=c("age", "workclass", "fnlwgt", "education","marital_status", "occupation",
+                                     "relationship", "race", "gender", "capital_gain",
+                                     "capital_loss", "hours_per_week", "income"))
+
+b.model <- glm(income~., family = binomial, data = b.rawdata)
+summary(b.model)
+```
+Acoording to the summary above, almost all the predictors are significant execpt some other types.
+Report the confusion matrix on the test set is :
+```{r}
+b.testdata$predict <- predict(b.model, b.testdata, type = 'response')
+b.testdata$Y_predict[b.testdata$predict>=0.5] <- 1
+b.testdata$Y_predict[b.testdata$predict<0.5] <- 0
+
+b.testdata$Y[b.testdata$income == '>50K'] <- 1
+b.testdata$Y[b.testdata$income == '<=50K'] <- 0
+
+confusion.matrix <- as.matrix(table('Actual'=b.testdata$Y, 'Prediction'=b.testdata$Y_predict))
+print(confusion.matrix)
+```
+Also, the accuracy :
+```{r}
+N <- nrow(b.testdata)				# number of observations
+diag <- diag(confusion.matrix)	# TN and TP
+Accuracy <- sum(diag)/N			# accuracy = (TP + TN)/N
+round(Accuracy*100,2)
+```
+Moreover, the precision and recall :
+```{r}
+rowsums = apply(confusion.matrix, 1, sum)	# number of observations per class
+colsums = apply(confusion.matrix, 2, sum)	# number of predictions per class
+Precision = diag / colsums
+Recall = diag / rowsums
+round(data.frame(Precision, Recall)*100,5) 
+```
+
+
+## Task C: Sampling
+### C.1
+According to the rejection method, the sampling algorithm can be defined as :\begin{align*}
+Acceptance Probability &= (\cfrac{Cq(X)}{P_{prop}(X)}) \\
+\end{align*}
+In which, $q(X)$ means the PDF proportion, $P_{prop}(X)$ means distribution, and C means constant. Also, it rejects $1-(\cfrac{Cq(X)}{P_{prop}(X)})$ of its samples.
+
+```{r}
+pdf <- function(x) {
+  lambda <- 1.5
+  if (x > 0)
+    lambda * (1/exp(lambda*x))
+}
+
+atest <- function(x) {
+  if (x > 0 && x < 1)
+    1
+  else 0
+}
+
+C <- 1/2
+size <- 1000
+count <- 0
+output <- c()
+#x.grid <- seq(0, 1, by = 0.01)
+
+while (count < size) {
+  sample <- runif(1, 0, 1)
+  aprob <- (C * pdf(sample))/atest(sample)
+  u <- runif(1, 0, 1)
+  if (aprob >= u) {
+    output <- c(output, sample)
+    count <- count + 1
+  }
+}
+
+hist(output, main="Rejection Sampling", xlab='x')
+par(new=TRUE)
+curve(1.5 * (1/exp(1.5*x)), from = 0, to = 1, xlim=c(0,1), ylim=c(0,2), col = "red", xlab = "", ylab="", xaxt="n",yaxt="n")
+
+
+```
+
+### C.2
+According to the inverse sampling method, let RV X have the CDF P(X), and its quantile function be Q(p). To sample X, sample Uas a uniform variable in (0,1) and then return Q(U).
+```{r}
+size <- 1000
+u <- runif(size, 0, 1)
+quantile <- function(u) {
+  lambda = 1.5
+  if (u > 0 && u < 1)
+    -log(1-u)/lambda
+}
+x <- unlist(lapply(u, quantile))
+
+hist(x, main="Inverse Sampling")
+par(new=TRUE)
+curve(1.5 * (1/exp(1.5*x)), from = 0, to = 1, xlim=c(0,1), ylim=c(0,2), col = "red",xlab = "", ylab="", xaxt="n",yaxt="n")
+
+
+```
+
+### C.3
+The Monte Carlo method is the use of randomness to solve probelms, which often done with simulation.
+In this case, the threshold/possibility of C, S, R, W for each combinations can be calculated as following:
+
+\begin{align*}
+p(\text{c|r, s, w}) &= p(\text{c|s, r}) \\
+&= \cfrac{p(\text{c})p(\text{s, r|c})}{p(\text{s, r})} \\
+&= \cfrac{p(\text{c})p(\text{s|c})p(\text{r|c})}{p(\text{c})p(\text{s|c})p(\text{r|c}) + p(\neg{c})p(\text{s|}\neg{c})p(\text{r|}\neg{c})} \\
+&= \cfrac{0.5 * 0.1 * 0.8}{0.5 * 0.1 * 0.8 + 0.5 * 0.5 * 0.2} \\
+&= 0.4444 \\
+\end{align*}
+
+\begin{align*}
+p(\text{r|c, s, w}) &= \cfrac{p(\text{r|c, s})p(\text{w|r, c, s})}{p(\text{w|c, s})} \\
+&= \cfrac{p(\text{r|c})p(\text{w|r, s})}{p(\text{w|c, s})} \\
+&= \cfrac{p(\text{r|c})p(\text{w|r, s})}{p(\text{r|c})p(\text{w|r, s}) + p(\neg{r|c})p(\text{w|}\neg{r, s})} \\
+&= \cfrac{0.8 * 0.99}{0.8 * 0.99 + 0.2 * 0.9} \\
+&= 0.8148 \\
+\end{align*}
+
+\begin{align*}
+p(\text{s|c, r, w}) &= \cfrac{p(\text{s|c, r})p(\text{w|r, c, s})}{p(\text{w|c, r})} \\
+&= \cfrac{p(\text{s|c})p(\text{w|r, s})}{p(\text{w|c, r})} \\
+&= \cfrac{p(\text{s|c})p(\text{w|r, s})}{p(\text{s|c})p(\text{w|r, s}) + p(\neg{s|c})p(\text{w|}\neg{s, r})} \\
+&= \cfrac{0.1 * 0.01}{0.1 * 0.01 + 0.9 * 0.9} \\
+&= 0.9878 \\
+\end{align*}
+
+\begin{align*}
+p(\text{w|c, s, r}) &= \cfrac{p(\text{w|r,s})p(\text{s|c})p(\text{r|c})}{p(\text{w|r,s})p(\text{s|c})p(\text{r|c} + p(\neg{w|r,s})p(\text{s|c})p(\text{r|c})} \\
+&= \cfrac{0.99*0.1*0.8}{0.99*0.1*0.8+0.01*0.1*0.8} \\
+&= 0.99 \\
+\end{align*}
+
+Also, the simulation is :
+```{r}
+# set first sample value
+c <- 0
+s <- 0
+r <- 0
+w <- 0
+
+RNA <- c()
+for(i in 1:1000)
+{
+  
+  x <- runif(1,min = 0, max = 1) #P(Cloudy)
+  if(x <= 0.5)
+  {
+    c <- 0
+  }
+  else
+  {
+    c <- 1
+  }
+  
+  
+  x <- runif(1,min = 0, max = 1) #P(Sprinkler)
+
+  if((c == 0 && x <= 0.5) ||
+     (c == 1 && x <= 0.9))
+  {
+    s <- 0
+  }
+  else
+  {
+    s <- 1
+  }
+  
+  
+  x <- runif(1,min = 0, max = 1) #P(Rain)
+  
+  if(c == 0 && x <= 0.8 || 
+     c == 1 && x <= 0.2)
+  {
+    r <- 0
+  }
+  else
+  {
+    r <- 1
+  }
+  
+  
+  x <- runif(1,min = 0, max = 1) #P(Wetgrass)
+  
+  if(s==0 && r==0 && x<=1 || 
+     s==1 && r==0 && x<=0.1 ||
+     s==0 && r==1 && x<=0.1 ||
+     s==1 && r==1 && x<=0.01  )
+  {
+    w <- 0 
+  }
+  else
+  {
+    w <- 1
+  }
+  
+  
+  RN <- c(c,s,r,w)
+  RNA[[i]] <- RN
+}
+
+RNA = as.data.frame(matrix(unlist(RNA),nrow=1000))
+
+colnames(RNA)[colnames(RNA)=="V1"] <- "Cloudy"
+colnames(RNA)[colnames(RNA)=="V2"] <- "Sprinkler"
+colnames(RNA)[colnames(RNA)=="V3"] <- "Rain"
+colnames(RNA)[colnames(RNA)=="V4"] <- "Wetgrass"
+
+df = tail(RNA, -100)
+```
+
+The table of Wetgrass and Cloudy :
+```{r}
+drops <- c("Wetgrass","Cloudy")
+df1 = df[ , !(names(df) %in% drops)]
+
+tb1 = table(df1)#Finding number of 0s and 1s 
+round(tb1/900,2)
+```
+
+The table of Sprinkler and Rain :
+```{r}
+drops <- c("Sprinkler","Rain")
+df2 = df[ , !(names(df) %in% drops)]
+
+tb2 = table(df2)#Finding number of 0s and 1s
+round(tb2/900,2)
+```
+
